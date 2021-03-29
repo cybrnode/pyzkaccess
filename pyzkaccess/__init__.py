@@ -10,3 +10,4 @@ from .pyzkaccess import *
 from .reader import *
 from .relay import *
 from .sdk import *
+from .data import *

@@ -1,8 +1,9 @@
 __all__ = [
     'ZKSDK'
 ]
+from pyzkaccess.data import TableName
 import pyzkaccess.ctypes as ctypes
-from typing import Sequence, Mapping, Any
+from typing import Dict, Iterable, List, Sequence, Mapping, Any
 
 from .exceptions import ZKSDKError
 
@@ -166,6 +167,79 @@ class ZKSDK:
                 'Parameters returned by a device are differ than parameters was requested'
             )
         return results
+
+    def get_device_data(self, tablename: TableName, buffer_size: int) -> Iterable[Mapping[str, Any]]:
+        """
+        Fetch given device data
+
+        SDK: GetDevicecData()
+        :param tablename: the name of the table to get data for ( string )
+        :param buffer_size: size in bytes of buffer which is filled
+         with contents
+        :raises ZKSDKError:
+        :return: list of dicts with requested table data. TODO: make
+         this description better
+        """
+        buf = ctypes.create_string_buffer(buffer_size)
+
+        query_table = ctypes.create_string_buffer(tablename.encode())
+
+        query_fieldname = ctypes.create_string_buffer(b"*")  # FIXME: add parameter for fieldname
+        query_filter = ctypes.create_string_buffer(b"")  # FIXME: add parameter for filter
+        query_options = ctypes.create_string_buffer(b"")  # FIXME: add parameter for options
+
+        err = self.dll.GetDeviceData(
+            self.handle, buf, buffer_size,
+            query_table, query_fieldname, query_filter, query_options,
+        )
+
+        if err < 0:
+            raise ZKSDKError('GetDeviceData failed', err)
+
+        results: List[Dict[str, Any]] = []
+
+        raw: str = buf.value.decode('utf-8')
+
+        if raw == '\r\n':
+            return []
+
+        lines = raw.split('\r\n')[:-1]
+
+        fieldnames = lines[0].split(',')
+
+        for values_line in lines[1:]:
+            values = values_line.split(',')
+
+            r = {}
+            for f, v in zip(fieldnames, values):
+                r[f] = v
+            results.append(r)
+
+        return results
+
+    def set_device_data(self, tablename: TableName, data: Iterable[Mapping[str, Any]]) -> None:
+        """
+        Set given device data
+
+        SDK: SetDevicecData()
+        :param tablename: the name of the table to get data for ( string )
+        :param data: data to be sent to the device TODO: make this description better
+        :raises ZKSDKError:
+        :return: None
+        """
+
+        p_tablename = ctypes.create_string_buffer(tablename.encode())
+
+        # TODO: make this less ugly
+        newdata = "\r\n".join(["\t".join([f"{k}={v}" for k, v in line.items()]) for line in data])
+
+        p_data = ctypes.create_string_buffer(newdata.encode())
+        p_options = ctypes.create_string_buffer(b"")  # FIXME: add parameter for options
+
+        err = self.dll.SetDeviceData(self.handle, p_tablename, p_data, p_options)
+
+        if err < 0:
+            raise ZKSDKError('SetDeviceData failed', err)
 
     def set_device_param(self, parameters: Mapping[str, Any]) -> None:
         """

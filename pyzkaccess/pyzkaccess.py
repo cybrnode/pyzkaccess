@@ -1,8 +1,9 @@
 __all__ = [
     'ZKAccess'
 ]
+from pyzkaccess.data import TableName
 import pyzkaccess.ctypes as ctypes
-from typing import Optional, Sequence
+from typing import Any, List, Mapping, Optional, Sequence
 
 from .aux_input import AuxInput, AuxInputList
 from .device import ZKModel, ZK400, ZKDevice
@@ -223,6 +224,12 @@ class ZKAccess:
     def restart(self) -> None:
         """Restart a device"""
         self.sdk.control_device(ControlOperation.restart.value, 0, 0, 0, 0)
+
+    def get_data(self, tablename: TableName):
+        return self.sdk.get_device_data(tablename, buffer_size=1024 * 1024 * 4)
+
+    def set_data(self, tablename: TableName, data: List[Mapping[str, Any]]) -> None:
+        return self.sdk.set_device_data(tablename, data)
 
     def __enter__(self):
         return self
