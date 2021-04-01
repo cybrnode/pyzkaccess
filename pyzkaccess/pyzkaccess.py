@@ -1,9 +1,7 @@
-__all__ = [
-    'ZKAccess'
-]
-from pyzkaccess.data import TableName
+__all__ = ["ZKAccess"]
+from pyzkaccess.data import TableName, User
 import pyzkaccess.ctypes as ctypes
-from typing import Any, List, Mapping, Optional, Sequence
+from typing import Any, Iterable, List, Mapping, Optional, Sequence
 
 from .aux_input import AuxInput, AuxInputList
 from .device import ZKModel, ZK400, ZKDevice
@@ -23,12 +21,14 @@ class ZKAccess:
     #: text data from PULL SDK functions
     buffer_size = 4096
 
-    def __init__(self,
-                 connstr: Optional[str] = None,
-                 device: Optional[ZKDevice] = None,
-                 device_model: type(ZKModel) = ZK400,
-                 dllpath: str = 'plcommpro.dll',
-                 log_capacity: Optional[int] = None):
+    def __init__(
+        self,
+        connstr: Optional[str] = None,
+        device: Optional[ZKDevice] = None,
+        device_model: type(ZKModel) = ZK400,
+        dllpath: str = "plcommpro.dll",
+        log_capacity: Optional[int] = None,
+    ):
         """
         :param connstr: Connection string. If given then
          we try to connect automatically to a device. Ex:
@@ -49,8 +49,7 @@ class ZKAccess:
 
         if device:
             if not connstr:
-                self.connstr = \
-                    'protocol=TCP,ipaddress={},port=4370,timeout=4000,passwd='.format(device.ip)
+                self.connstr = "protocol=TCP,ipaddress={},port=4370,timeout=4000,passwd=".format(device.ip)
             if not device_model:
                 self.device_model = device.model
 
@@ -71,21 +70,16 @@ class ZKAccess:
         readers = (Reader(self.sdk, self._event_log, x) for x in mdl.readers_def)
         aux_inputs = (AuxInput(self.sdk, self._event_log, n) for n in mdl.aux_inputs_def)
         relays = (Relay(self.sdk, g, n) for g, n in zip(mdl.groups_def, mdl.relays_def))
-        door_relays = (
-            RelayList(self.sdk, relays=[x for x in relays if x.number == door])
-            for door in mdl.doors_def
-        )
-        params = (DoorParameters(self.sdk, device_model=mdl, door_number=door)
-                  for door in mdl.doors_def)
+        door_relays = (RelayList(self.sdk, relays=[x for x in relays if x.number == door]) for door in mdl.doors_def)
+        params = (DoorParameters(self.sdk, device_model=mdl, door_number=door) for door in mdl.doors_def)
 
         seq = zip(mdl.doors_def, door_relays, readers, aux_inputs, params)
-        doors = [Door(self.sdk, self._event_log, door, relays, reader, aux_input, params)
-                 for door, relays, reader, aux_input, params in seq]
+        doors = [Door(self.sdk, self._event_log, door, relays, reader, aux_input, params) for door, relays, reader, aux_input, params in seq]
 
         return DoorList(self.sdk, event_log=self._event_log, doors=doors)
 
     @property
-    def relays(self) -> 'RelayList':
+    def relays(self) -> "RelayList":
         """Relay object list, depends on device model
 
         You can work with one object as with a slice. E.g. switch on
@@ -97,7 +91,7 @@ class ZKAccess:
         return RelayList(sdk=self.sdk, relays=relays)
 
     @property
-    def readers(self) -> 'ReaderList':
+    def readers(self) -> "ReaderList":
         """Reader object list, depends on device model
 
         You can work with one object as with a slice. E.g. get events
@@ -120,7 +114,7 @@ class ZKAccess:
         return AuxInputList(self.sdk, event_log=self._event_log, aux_inputs=aux_inputs)
 
     @property
-    def events(self) -> 'EventLog':
+    def events(self) -> "EventLog":
         """Device event log.
 
         This property returns all records pulled from a device.
@@ -154,13 +148,9 @@ class ZKAccess:
             return self._device
 
         if not self.sdk.is_connected:
-            raise RuntimeError('Cannot create device while not connected')
+            raise RuntimeError("Cannot create device while not connected")
 
-        return ZKDevice(mac=None,
-                        ip=self.parameters.ip_address,
-                        serial_number=self.parameters.serial_number,
-                        model=self.device_model,
-                        version=None)
+        return ZKDevice(mac=None, ip=self.parameters.ip_address, serial_number=self.parameters.serial_number, model=self.device_model, version=None)
 
     @property
     def dll_object(self) -> ctypes.WinDLL:
@@ -175,9 +165,7 @@ class ZKAccess:
         return self.sdk.handle
 
     @classmethod
-    def search_devices(cls,
-                       broadcast_address: str = '255.255.255.255',
-                       dllpath: str = 'plcommpro.dll') -> Sequence[ZKDevice]:
+    def search_devices(cls, broadcast_address: str = "255.255.255.255", dllpath: str = "plcommpro.dll") -> Sequence[ZKDevice]:
         """
         Classmethod which scans an Ethernet network with given
         broadcast address and returns all found ZK devices.
@@ -211,7 +199,7 @@ class ZKAccess:
         """
         if self.sdk.is_connected:
             if connstr != self.connstr:
-                raise ValueError('Please disconnect before connecting with other connstr')
+                raise ValueError("Please disconnect before connecting with other connstr")
             return
 
         self.connstr = connstr
@@ -230,6 +218,14 @@ class ZKAccess:
 
     def set_data(self, tablename: TableName, data: List[Mapping[str, Any]]) -> None:
         return self.sdk.set_device_data(tablename, data)
+
+    def get_users(self) -> Iterable[User]:
+        all_users = []
+
+        data = self.sdk.get_device_data(TableName.user, 4 * 1024 * 1024)
+        for d in data:
+            all_users.append(User(**d))
+        return all_users
 
     def __enter__(self):
         return self
