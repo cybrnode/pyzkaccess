@@ -227,6 +227,15 @@ class ZKAccess:
             all_users.append(User(**d))
         return all_users
 
+    def add_users(self, users: List[User]) -> None:
+        # TODO: raise an exception if a user already exist? (Pin is unique for each user)
+        # TODO: raise an exception if a user already exist? (Pin is unique for each user)
+        # TODO: raise an exception if a user already exist? (Pin is unique for each user)
+        # TODO: raise an exception if a user already exist? (Pin is unique for each user)
+        # TODO: raise an exception if a user already exist? (Pin is unique for each user)
+        users_dicts = map(lambda u: u.dict(), users)
+        self.sdk.set_device_data(TableName.user, users_dicts)
+
     def __enter__(self):
         return self
 
