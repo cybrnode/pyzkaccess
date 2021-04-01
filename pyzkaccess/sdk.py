@@ -223,7 +223,7 @@ class ZKSDK:
 
         SDK: SetDevicecData()
         :param tablename: the name of the table to get data for ( string )
-        :param data: data to be sent to the device TODO: make this description better
+        :param data: data to be sent to the device FIXME: make this description better
         :raises ZKSDKError:
         :return: None
         """
@@ -240,6 +240,30 @@ class ZKSDK:
 
         if err < 0:
             raise ZKSDKError('SetDeviceData failed', err)
+
+    def delete_device_data(self, tablename: TableName, data_filter: Iterable[Mapping[str, Any]]) -> None:
+        """
+        Delete given device data
+
+        SDK: DeleteDevicecData()
+        :param tablename: the name of the table to delete data from
+        :param data_filter: filter for which data to delete FIXME: make this description better
+        :raises ZKSDKError:
+        :return: None
+        """
+
+        p_tablename = ctypes.create_string_buffer(tablename.encode())
+
+        # TODO: make this less ugly
+        data_str = "\r\n".join(["\t".join([f"{k}={v}" for k, v in line.items()]) for line in data_filter])
+
+        p_data = ctypes.create_string_buffer(data_str.encode())
+        p_options = ctypes.create_string_buffer(b"")  # FIXME: add parameter for options
+
+        err = self.dll.DeleteDeviceData(self.handle, p_tablename, p_data, p_options)
+
+        if err < 0:
+            raise ZKSDKError('DeleteDeviceData failed', err)
 
     def set_device_param(self, parameters: Mapping[str, Any]) -> None:
         """
