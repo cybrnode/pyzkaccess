@@ -41,12 +41,12 @@ class TestDeviceData:
 
         self.test_user = User(**self.test_user_data)
 
-    def test_delete_device_data_deletes_newly_added_user_data(self):
+    def test_delete_all_device_data_deletes_newly_added_user_data(self):
         self.add_user_data_to_device(self.test_user_data)
         self.delete_all_device_data()
 
-        assert self.verify_user_data_found_in_device_data(self.test_user_data)
-        assert len(list(self.get_users_data_using_sdk())) == 1
+        assert not self.verify_user_data_found_in_device_data(self.test_user_data)
+        assert len(list(self.get_users_data_using_sdk())) == 0
 
     def test_set_device_data_user_table_raises_no_exception(self):
         self.zk.sdk.set_device_data(TableName.user, [self.test_user_data])
