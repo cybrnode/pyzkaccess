@@ -1,8 +1,4 @@
-__all__ = [
-    'UserTuple',
-    'DocValue',
-    'DocDict'
-]
+__all__ = ["UserTuple", "DocValue", "DocDict"]
 from copy import copy, deepcopy
 from typing import Sequence, Union, Iterable
 
@@ -10,9 +6,29 @@ from wrapt import ObjectProxy
 from wrapt.wrappers import _ObjectProxyMetaType  # noqa
 
 
+class DeviceDataFilter:
+    """`DeviceDataFilter` represents the conditions for reading device data;
+    the character string in the format "field name, operator, value" can support multiple conditions,
+    which are separated by commas; for example <Fieldname>=<Value>
+    """
+
+    def __init__(self):
+        self.data = {}
+
+    def add_condition(self, fieldname: str, equal_to: str):
+        self.data[fieldname] = equal_to
+
+    def get_dict(self):
+        return self.data
+
+    def __str__(self):
+        return ",".join([f"{k}={v}" for k, v in self.data.items()])
+
+
 class UserTuple:
     """Immutable version of `collections.UserList` from the stdlib"""
-    def __init__(self, initlist: Union[Sequence, Iterable, 'UserTuple'] = None):
+
+    def __init__(self, initlist: Union[Sequence, Iterable, "UserTuple"] = None):
         self.data = tuple()
         if initlist is not None:
             # XXX should this accept an arbitrary sequence?
@@ -23,18 +39,32 @@ class UserTuple:
             else:
                 self.data = tuple(initlist)
 
-    def __repr__(self): return repr(self.data)
-    def __lt__(self, other): return self.data <  self.__cast(other)  # noqa
-    def __le__(self, other): return self.data <= self.__cast(other)
-    def __eq__(self, other): return self.data == self.__cast(other)
-    def __gt__(self, other): return self.data >  self.__cast(other)  # noqa
-    def __ge__(self, other): return self.data >= self.__cast(other)
+    def __repr__(self):
+        return repr(self.data)
+
+    def __lt__(self, other):
+        return self.data < self.__cast(other)  # noqa
+
+    def __le__(self, other):
+        return self.data <= self.__cast(other)
+
+    def __eq__(self, other):
+        return self.data == self.__cast(other)
+
+    def __gt__(self, other):
+        return self.data > self.__cast(other)  # noqa
+
+    def __ge__(self, other):
+        return self.data >= self.__cast(other)
 
     def __cast(self, other):
         return other.data if isinstance(other, UserTuple) else other
 
-    def __contains__(self, item): return item in self.data
-    def __len__(self): return len(self.data)
+    def __contains__(self, item):
+        return item in self.data
+
+    def __len__(self):
+        return len(self.data)
 
     def __getitem__(self, i):
         if isinstance(i, slice):
@@ -66,7 +96,7 @@ class UserTuple:
         return self
 
     def __mul__(self, n):
-        return self.__class__(self.data*n)
+        return self.__class__(self.data * n)
 
     __rmul__ = __mul__
 
@@ -84,9 +114,14 @@ class UserTuple:
         inst.__dict__["data"] = self.__dict__["data"][:]
         return inst
 
-    def copy(self): return self.__class__(self)
-    def count(self, item): return self.data.count(item)
-    def index(self, item, *args): return self.data.index(item, *args)
+    def copy(self):
+        return self.__class__(self)
+
+    def count(self, item):
+        return self.data.count(item)
+
+    def index(self, item, *args):
+        return self.data.index(item, *args)
 
 
 class DocValueMeta(_ObjectProxyMetaType):
@@ -99,7 +134,7 @@ class DocValueMeta(_ObjectProxyMetaType):
         doc_prop = property(get_doc, None, None)
 
         new_class = super().__new__(cls, name, bases, attrs)
-        type.__setattr__(new_class, '__doc__', doc_prop)
+        type.__setattr__(new_class, "__doc__", doc_prop)
         return new_class
 
 
@@ -107,6 +142,7 @@ class DocValue(ObjectProxy, metaclass=DocValueMeta):
     """Value of type with custom __doc__ attribute. The main aim is to
     annotate a value of any type including built-in ones
     """
+
     def __init__(self, value: Union[str, int], doc: str):
         """
         :param value: value which was exposed by this object
@@ -114,7 +150,7 @@ class DocValue(ObjectProxy, metaclass=DocValueMeta):
         """
         super().__init__(value)
         if not isinstance(value, (str, int)):
-            raise TypeError('Init value type must be int or str')
+            raise TypeError("Init value type must be int or str")
 
         self._self_value = value
         self._self_doc = doc
@@ -162,5 +198,6 @@ class DocDict(dict):
         >>> print(d[1].__doc__, ',', d['2'].__doc__)
         Docstring 1 , Docstring 2
     """
+
     def __init__(self, initdict: dict):
         super().__init__({k: DocValue(k, v) for k, v in initdict.items()})

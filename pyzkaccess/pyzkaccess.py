@@ -1,4 +1,5 @@
 __all__ = ["ZKAccess"]
+from pyzkaccess.common import DeviceDataFilter
 from pyzkaccess.data import TableName, User
 import pyzkaccess.ctypes as ctypes
 from typing import Any, Iterable, List, Mapping, Optional, Sequence
@@ -219,7 +220,7 @@ class ZKAccess:
     def set_data(self, tablename: TableName, data: List[Mapping[str, Any]]) -> None:
         return self.sdk.set_device_data(tablename, data)
 
-    def get_users(self) -> Iterable[User]:
+    def get_all_users(self) -> List[User]:
         all_users = []
 
         data = self.sdk.get_device_data(TableName.user, 4 * 1024 * 1024)
@@ -227,13 +228,38 @@ class ZKAccess:
             all_users.append(User(**d))
         return all_users
 
-    def add_users(self, users: List[User]) -> None:
-        # TODO: raise an exception if a user already exist? (Pin is unique for each user)
-        # TODO: raise an exception if a user already exist? (Pin is unique for each user)
-        # TODO: raise an exception if a user already exist? (Pin is unique for each user)
-        # TODO: raise an exception if a user already exist? (Pin is unique for each user)
-        # TODO: raise an exception if a user already exist? (Pin is unique for each user)
-        users_dicts = map(lambda u: u.dict(), users)
+    def get_user_by_pin(self, pin: int) -> User:
+        data_filter = DeviceDataFilter()
+        data_filter.add_condition("Pin", str(pin))
+        users = self.sdk.get_device_data(TableName.user, 1024 * 1024 * 4, data_filter)
+        if (len(users)) > 1:
+            print(users)
+            raise Exception("More than one users matched the query.WTF")  # FIXME: make custom exception
+        elif len(users) == 0:
+            raise Exception("User not found.WTF")  # FIXME: make custom exception
+
+        return User(**users[0])
+
+    def delete_user_by_pin(self, pin: int) -> None:
+        # TODO: Check if a user exists before deleting and raise an exception if it doesn't exist
+        data_filter = DeviceDataFilter()
+        data_filter.add_condition("Pin", str(pin))
+        self.sdk.delete_device_data(TableName.user, [data_filter])
+
+    def update_user_by_pin(self, pin: int, updated_user: User) -> None:
+        existing_user = self.get_user_by_pin(pin)
+        new_user = existing_user.copy(update=updated_user.dict())
+        self.add_users([new_user], replace_existing=True)
+
+    def add_users(self, users: List[User], replace_existing=False) -> None:
+        # raise Error if user already exists and replace_existing=False, FIXME: make this bit less uglier
+        if not replace_existing:
+            for existing_user_i in self.get_all_users():
+                for new_user in users:
+                    if new_user.Pin is existing_user_i.Pin:
+                        raise Exception("User already exists")  # FIXME: make custom exception
+
+        users_dicts = list(map(lambda u: u.dict(), users))
         self.sdk.set_device_data(TableName.user, users_dicts)
 
     def __enter__(self):

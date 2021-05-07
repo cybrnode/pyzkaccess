@@ -1,6 +1,7 @@
 __all__ = [
     'ZKSDK'
 ]
+from pyzkaccess.common import DeviceDataFilter
 from pyzkaccess.data import TableName
 import pyzkaccess.ctypes as ctypes
 from typing import Dict, Iterable, List, Sequence, Mapping, Any
@@ -168,7 +169,7 @@ class ZKSDK:
             )
         return results
 
-    def get_device_data(self, tablename: TableName, buffer_size: int) -> Iterable[Mapping[str, Any]]:
+    def get_device_data(self, tablename: TableName, buffer_size: int, data_filter: DeviceDataFilter = DeviceDataFilter()) -> List[Dict[str, Any]]:
         """
         Fetch given device data
 
@@ -185,12 +186,12 @@ class ZKSDK:
         query_table = ctypes.create_string_buffer(tablename.encode())
 
         query_fieldname = ctypes.create_string_buffer(b"*")  # FIXME: add parameter for fieldname
-        query_filter = ctypes.create_string_buffer(b"")  # FIXME: add parameter for filter
+        data_filter_string = ctypes.create_string_buffer(data_filter.__str__().encode())
         query_options = ctypes.create_string_buffer(b"")  # FIXME: add parameter for options
 
         err = self.dll.GetDeviceData(
             self.handle, buf, buffer_size,
-            query_table, query_fieldname, query_filter, query_options,
+            query_table, query_fieldname, data_filter_string, query_options,
         )
 
         if err < 0:
@@ -217,7 +218,7 @@ class ZKSDK:
 
         return results
 
-    def set_device_data(self, tablename: TableName, data: Iterable[Mapping[str, Any]]) -> None:
+    def set_device_data(self, tablename: TableName, data: List[Dict[str, Any]]) -> None:
         """
         Set given device data
 
@@ -241,13 +242,13 @@ class ZKSDK:
         if err < 0:
             raise ZKSDKError('SetDeviceData failed', err)
 
-    def delete_device_data(self, tablename: TableName, data_filter: Iterable[Mapping[str, Any]]) -> None:
+    def delete_device_data(self, tablename: TableName, data_filter: List[DeviceDataFilter]) -> None:
         """
         Delete given device data
 
         SDK: DeleteDevicecData()
         :param tablename: the name of the table to delete data from
-        :param data_filter: filter for which data to delete FIXME: make this description better
+        :param data_filter: list of filters for deleting device data (each item in list deletes one entity (i think)) FIXME: make this description better
         :raises ZKSDKError:
         :return: None
         """
@@ -255,12 +256,12 @@ class ZKSDK:
         p_tablename = ctypes.create_string_buffer(tablename.encode())
 
         # TODO: make this less ugly
-        data_str = "\r\n".join(["\t".join([f"{k}={v}" for k, v in line.items()]) for line in data_filter])
+        data_filter_string = "\r\n".join([f.__str__() for f in data_filter])
 
-        p_data = ctypes.create_string_buffer(data_str.encode())
+        p_data_filter = ctypes.create_string_buffer(data_filter_string.encode())
         p_options = ctypes.create_string_buffer(b"")  # FIXME: add parameter for options
 
-        err = self.dll.DeleteDeviceData(self.handle, p_tablename, p_data, p_options)
+        err = self.dll.DeleteDeviceData(self.handle, p_tablename, p_data_filter, p_options)
 
         if err < 0:
             raise ZKSDKError('DeleteDeviceData failed', err)
